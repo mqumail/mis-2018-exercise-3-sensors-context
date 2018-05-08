@@ -41,19 +41,29 @@
 
     <SeekBar
         android:id="@+id/seekBarChart"
+        android:max="60"
+        android:min="1"
         android:layout_width="match_parent"
         android:layout_height="20dp"
         android:layout_marginEnd="10dp"
         android:layout_marginStart="10dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="68dp"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/accelerometerChart" />
+        app:layout_constraintTop_toBottomOf="@+id/accelerometerChart"/>
 
-    <!-- <View
-        android:id="@+id/view"
+    <TextView
+        android:id="@+id/AccelerometerRateTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="@id/accelerometerChart"/>-->
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/seekBarChart"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/accelerometerChart"/>
 
 </android.support.constraint.ConstraintLayout>

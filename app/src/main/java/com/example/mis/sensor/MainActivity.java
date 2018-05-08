@@ -27,6 +27,7 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -41,9 +42,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
     private int winSize = 64;
+    private int accelorometerCaptureRate = 1;
+    private TextView accelerometerRateTextView;
     int entryNumber = 0;
     int arrayNumber = 0;
     int initFFTBar = 8;
+
+
     List<Entry> xAxisEntries = new ArrayList<>();
     List<Entry> yAxisEntries = new ArrayList<>();
     List<Entry> zAxisEntries = new ArrayList<>();
@@ -77,15 +82,50 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                if(initFFTBar <= 1){initFFTBar = 2;}
+                if(initFFTBar <= 1)
+                {
+                    initFFTBar = 2;
+                }
                 winSize = (int) Math.pow(2, initFFTBar);
-                Toast.makeText(getApplicationContext(), "Current winsize: " + winSize, Toast.LENGTH_LONG).show();
+                Toast.makeText(getApplicationContext(), "Current window size: " + winSize, Toast.LENGTH_LONG).show();
                 fftValues = new double[winSize];// Assign array size
             }
         });
 
-        Toast.makeText(getApplicationContext(), "initial winsize: " + winSize, Toast.LENGTH_LONG).show();
+        Toast.makeText(getApplicationContext(), "initial window size: " + winSize, Toast.LENGTH_LONG).show();
         fftValues = new double[winSize];// Assign array size
+
+        // initiate and fill example array with random values
+        //rndAccExamplevalues = new double[64];
+        //randomFill(rndAccExamplevalues);
+        //new FFTAsynctask(64).execute(rndAccExamplevalues);
+
+        // Reference: https://www.android-examples.com/increase-decrease-number-value-on-seekbar-android-within-define-range/
+        accelerometerRateTextView = findViewById(R.id.AccelerometerRateTextView);
+        SeekBar accelerometerSeekBar = findViewById(R.id.seekBarChart);
+
+        accelerometerSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
+        {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b)
+            {
+                 accelorometerCaptureRate = i;
+
+                accelerometerRateTextView.setText(accelorometerCaptureRate + " Seconds");
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar)
+            {
+                //mSensorManager.unregisterListener(MainActivity.this);
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar)
+            {
+                //mSensorManager.registerListener(MainActivity.this, mAccelerometer, accelorometerCaptureRate * 1000000);
+            }
+        });
     }
 
     @Override
@@ -96,6 +136,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public final void onSensorChanged(SensorEvent event)
     {
+
+        // Cleanup arrays so they don't eat up memory
+        cleanupDataLists();
+
         final float xAxis = event.values[0];
         final float yAxis = event.values[1];
         final float zAxis = event.values[2];
@@ -149,25 +193,68 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         chart.invalidate(); // refresh
 
         //apply FFT to magnitude
-        if (arrayNumber < winSize) {
+        if (arrayNumber < winSize)
+        {
             fftValues[arrayNumber] = magnitude; //Add values to the array used for FFT
-        } else if (arrayNumber == winSize){
+        }
+        else if (arrayNumber == winSize)
+        {
             new FFTAsynctask(winSize).execute(fftValues); // Run FFTAsynctask when the array has enough data
         }
-        else { // Reset array to send new data accordign to the window size
+        else
+        {
+            // Reset array to send new data accordign to the window size
             arrayNumber = 0;
             fftValues = new double[winSize];
         }
 
         arrayNumber++;
         entryNumber++;
+    }
 
+    private void cleanupDataLists()
+    {
+        if (xAxisEntries.size() > 100)
+        {
+            Log.i("cleaning x Array", "x size is:" + xAxisEntries.size());
+            for(int i = 0; i < 10; i++)
+            {
+                xAxisEntries.remove(i);
+            }
+        }
+
+        if (yAxisEntries.size() > 100)
+        {
+            Log.i("cleaning y Array", "y size is:" + yAxisEntries.size());
+            for(int i = 0; i < 10; i++)
+            {
+                yAxisEntries.remove(i);
+            }
+        }
+
+        if (zAxisEntries.size() > 100)
+        {
+            Log.i("cleaning z Array", "z size is:" + zAxisEntries.size());
+            for(int i = 0; i < 10; i++)
+            {
+                zAxisEntries.remove(i);
+            }
+        }
+
+        if (magnitudeEntries.size() > 100)
+        {
+            Log.i("cleaning mag Array", "mag size is:" + magnitudeEntries.size());
+            for(int i = 0; i < 10; i++)
+            {
+                magnitudeEntries.remove(i);
+            }
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mAccelerometer, accelorometerCaptureRate * 1000000);
     }
 
     @Override
@@ -238,5 +325,4 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         }
     }
-
 }
