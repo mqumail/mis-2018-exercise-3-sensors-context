@@ -10,7 +10,9 @@ import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.mis.sensor.FFT;
 import com.github.mikephil.charting.charts.BarChart;
@@ -34,16 +36,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 {
     // Reference: https://developer.android.com/guide/topics/sensors/sensors_overview#sensors-identify
 
-    //example variables
-    private double[] rndAccExamplevalues;
     private double[] freqCounts;
+    private double[] fftValues;
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
+    private int winSize = 64;
     int entryNumber = 0;
+    int arrayNumber = 0;
+    int initFFTBar = 8;
     List<Entry> xAxisEntries = new ArrayList<>();
     List<Entry> yAxisEntries = new ArrayList<>();
     List<Entry> zAxisEntries = new ArrayList<>();
     List<Entry> magnitudeEntries = new ArrayList<>();
+    List<Entry> fftEntries = new ArrayList<>();
+    SeekBar seekBarFFT;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,10 +60,32 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
-        // initiate and fill example array with random values
-        rndAccExamplevalues = new double[64];
-        randomFill(rndAccExamplevalues);
-        new FFTAsynctask(64).execute(rndAccExamplevalues);
+        seekBarFFT = findViewById(R.id.seekBarFFT);
+        seekBarFFT.setMax(16);
+        seekBarFFT.setProgress(initFFTBar);
+
+        seekBarFFT.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                initFFTBar = progress;
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                if(initFFTBar <= 1){initFFTBar = 2;}
+                winSize = (int) Math.pow(2, initFFTBar);
+                Toast.makeText(getApplicationContext(), "Current winsize: " + winSize, Toast.LENGTH_LONG).show();
+                fftValues = new double[winSize];// Assign array size
+            }
+        });
+
+        Toast.makeText(getApplicationContext(), "initial winsize: " + winSize, Toast.LENGTH_LONG).show();
+        fftValues = new double[winSize];// Assign array size
     }
 
     @Override
@@ -119,7 +148,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         chart.invalidate(); // refresh
 
+        //apply FFT to magnitude
+        if (arrayNumber < winSize) {
+            fftValues[arrayNumber] = magnitude; //Add values to the array used for FFT
+        } else if (arrayNumber == winSize){
+            new FFTAsynctask(winSize).execute(fftValues); // Run FFTAsynctask when the array has enough data
+        }
+        else { // Reset array to send new data accordign to the window size
+            arrayNumber = 0;
+            fftValues = new double[winSize];
+        }
+
+        arrayNumber++;
         entryNumber++;
+
     }
 
     @Override
@@ -178,16 +220,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         protected void onPostExecute(double[] values) {
             //hand over values to global variable after background task is finished
             freqCounts = values;
-        }
-    }
 
-    /**
-     * little helper function to fill example with random double values
-     */
-    public void randomFill(double[] array){
-        Random rand = new Random();
-        for(int i = 0; array.length > i; i++){
-            array[i] = rand.nextDouble();
+            LineChart fftChart = findViewById(R.id.fftChart); //fft Chart
+
+            for (int i = 0; i < winSize; i++) {
+                fftEntries.add(new Entry(entryNumber, ((float) freqCounts[i])));
+                LineDataSet dataFFT = new LineDataSet(fftEntries, "FFT-data");
+                dataFFT.setDrawCircles(false);
+                dataFFT.setColor(Color.YELLOW);
+                dataFFT.setValueTextColor(Color.YELLOW);
+                List<ILineDataSet> FFTDataSet = new ArrayList<>();
+                FFTDataSet.add(dataFFT);
+                LineData fftLineData = new LineData(FFTDataSet);
+                fftChart.setData(fftLineData);
+                fftChart.setBackgroundColor(Color.DKGRAY);
+                fftChart.invalidate();
+            }
         }
     }
 

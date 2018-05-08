@@ -28,7 +28,7 @@ package com.example.mis.sensor;
  *  https://www.ee.columbia.edu/~ronw/code/MEAPsoft/doc/html/FFT_8java-source.html
  */
 
-public class FFT {
+    public class FFT {
 
     int n, m;
 
