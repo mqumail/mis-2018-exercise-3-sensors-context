@@ -14,40 +14,30 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.mis.sensor.FFT;
-import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.LineChart;
-import com.github.mikephil.charting.components.YAxis;
-import com.github.mikephil.charting.data.BarData;
-import com.github.mikephil.charting.data.BarDataSet;
-import com.github.mikephil.charting.data.BarEntry;
-import com.github.mikephil.charting.data.DataSet;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
-import java.sql.Time;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Random;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener
 {
     // Reference: https://developer.android.com/guide/topics/sensors/sensors_overview#sensors-identify
-
     private double[] freqCounts;
     private double[] fftValues;
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
     private int winSize = 64;
-    private int accelorometerCaptureRate = 1;
+    private int accelerometerCaptureRate = 1;
+    private int accelerometerCaptureRateInMicroSeconds;
     private TextView accelerometerRateTextView;
     int entryNumber = 0;
     int arrayNumber = 0;
     int initFFTBar = 8;
-
 
     List<Entry> xAxisEntries = new ArrayList<>();
     List<Entry> yAxisEntries = new ArrayList<>();
@@ -56,14 +46,46 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     List<Entry> fftEntries = new ArrayList<>();
     SeekBar seekBarFFT;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Reference: https://www.android-examples.com/increase-decrease-number-value-on-seekbar-android-within-define-range/
+        accelerometerRateTextView = findViewById(R.id.AccelerometerRateTextView);
+        SeekBar accelerometerSeekBar = findViewById(R.id.seekBarChart);
+
+        accelerometerSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
+        {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b)
+            {
+                accelerometerCaptureRate = i;
+                accelerometerRateTextView.setText(String.format(Locale.getDefault(),"%d%s", accelerometerCaptureRate, " Seconds"));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar)
+            {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar)
+            {
+                Log.i("SeekBar Event", "onStopTrackingTouch called");
+                accelerometerCaptureRateInMicroSeconds = accelerometerCaptureRate * 100000;
+                mSensorManager.unregisterListener(MainActivity.this);
+                mSensorManager.registerListener(MainActivity.this, mAccelerometer, accelerometerCaptureRateInMicroSeconds);
+            }
+        });
+
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (mAccelerometer != null)
+        {
+            accelerometerCaptureRateInMicroSeconds = accelerometerCaptureRate * 100000;
+            mSensorManager.registerListener(this, mAccelerometer, accelerometerCaptureRateInMicroSeconds);
+        }
 
         seekBarFFT = findViewById(R.id.seekBarFFT);
         seekBarFFT.setMax(16);
@@ -99,33 +121,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         //rndAccExamplevalues = new double[64];
         //randomFill(rndAccExamplevalues);
         //new FFTAsynctask(64).execute(rndAccExamplevalues);
-
-        // Reference: https://www.android-examples.com/increase-decrease-number-value-on-seekbar-android-within-define-range/
-        accelerometerRateTextView = findViewById(R.id.AccelerometerRateTextView);
-        SeekBar accelerometerSeekBar = findViewById(R.id.seekBarChart);
-
-        accelerometerSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
-        {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b)
-            {
-                 accelorometerCaptureRate = i;
-
-                accelerometerRateTextView.setText(accelorometerCaptureRate + " Seconds");
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar)
-            {
-                //mSensorManager.unregisterListener(MainActivity.this);
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar)
-            {
-                //mSensorManager.registerListener(MainActivity.this, mAccelerometer, accelorometerCaptureRate * 1000000);
-            }
-        });
     }
 
     @Override
@@ -136,7 +131,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public final void onSensorChanged(SensorEvent event)
     {
-
         // Cleanup arrays so they don't eat up memory
         cleanupDataLists();
 
@@ -203,7 +197,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
         else
         {
-            // Reset array to send new data accordign to the window size
+            // Reset array to send new data according to the window size
             arrayNumber = 0;
             fftValues = new double[winSize];
         }
@@ -254,7 +248,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     protected void onResume() {
         super.onResume();
-        mSensorManager.registerListener(this, mAccelerometer, accelorometerCaptureRate * 1000000);
+        accelerometerCaptureRateInMicroSeconds = accelerometerCaptureRate * 100000;
+        mSensorManager.registerListener(this, mAccelerometer, accelerometerCaptureRateInMicroSeconds);
     }
 
     @Override

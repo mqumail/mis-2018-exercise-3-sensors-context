@@ -41,7 +41,7 @@
 
     <SeekBar
         android:id="@+id/seekBarChart"
-        android:max="60"
+        android:max="5"
         android:min="1"
         android:layout_width="match_parent"
         android:layout_height="20dp"
