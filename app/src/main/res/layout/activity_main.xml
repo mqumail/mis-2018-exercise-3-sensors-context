@@ -18,52 +18,87 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <SeekBar
-        android:id="@+id/seekBarFFT"
+        android:id="@+id/seekBarChart"
         android:layout_width="match_parent"
         android:layout_height="20dp"
         android:layout_marginEnd="10dp"
         android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/accelerometerChart" />
+
+    <TextView
+        android:id="@+id/AccelerometerRateTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="20dp"
+        android:layout_marginStart="20dp"
         android:layout_marginTop="10dp"
+        android:textAlignment="center"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/fftChart" />
+        app:layout_constraintTop_toBottomOf="@+id/seekBarChart" />
 
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/fftChart"
+    <com.jjoe64.graphview.GraphView
         android:layout_width="match_parent"
         android:layout_height="200dp"
+        android:id="@+id/fftGraph"
         android:layout_marginEnd="10dp"
         android:layout_marginStart="10dp"
         android:layout_marginTop="50dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/seekBarChart" />
+        app:layout_constraintTop_toBottomOf="@+id/AccelerometerRateTextView"/>
 
     <SeekBar
-        android:id="@+id/seekBarChart"
-        android:max="5"
-        android:min="1"
+        android:id="@+id/seekBarFFT"
         android:layout_width="match_parent"
         android:layout_height="20dp"
         android:layout_marginEnd="10dp"
         android:layout_marginStart="10dp"
-        android:layout_marginTop="68dp"
+        android:layout_marginTop="20dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/accelerometerChart"/>
+        app:layout_constraintTop_toBottomOf="@+id/fftGraph" />
 
     <TextView
-        android:id="@+id/AccelerometerRateTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/seekBarChart"
+        android:id="@+id/windowSizeTextView"
+        android:layout_width="0dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="10dp"
+        android:textAlignment="center"
+        app:layout_constraintTop_toBottomOf="@+id/seekBarFFT"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/resetFreq"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        android:onClick="resetValues"
+        android:text="Reset Max Value"
+        app:layout_constraintEnd_toStartOf="@+id/showFreq"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/accelerometerChart"/>
+        app:layout_constraintTop_toBottomOf="@+id/windowSizeTextView" />
+
+    <Button
+        android:id="@+id/showFreq"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        android:onClick="showValues"
+        android:text="Show Max Value"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/resetFreq"
+        app:layout_constraintTop_toBottomOf="@+id/windowSizeTextView" />
 
 </android.support.constraint.ConstraintLayout>

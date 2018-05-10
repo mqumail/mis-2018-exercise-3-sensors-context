@@ -10,6 +10,8 @@ import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,6 +21,9 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,19 +36,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private double[] fftValues;
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
-    private int winSize = 64;
     private int accelerometerCaptureRate = 1;
     private int accelerometerCaptureRateInMicroSeconds;
+    private int winSize = 32;
     private TextView accelerometerRateTextView;
+    private TextView windowSizeTextView;
+    private LineGraphSeries<DataPoint> fftSeries = new LineGraphSeries<>();
+    private GraphView fftGraph;
     int entryNumber = 0;
     int arrayNumber = 0;
-    int initFFTBar = 8;
-
+    int initFFTBar = 5;
+    double maxFreq;
     List<Entry> xAxisEntries = new ArrayList<>();
     List<Entry> yAxisEntries = new ArrayList<>();
     List<Entry> zAxisEntries = new ArrayList<>();
     List<Entry> magnitudeEntries = new ArrayList<>();
-    List<Entry> fftEntries = new ArrayList<>();
     SeekBar seekBarFFT;
 
     @Override
@@ -54,12 +61,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // Reference: https://www.android-examples.com/increase-decrease-number-value-on-seekbar-android-within-define-range/
         accelerometerRateTextView = findViewById(R.id.AccelerometerRateTextView);
         SeekBar accelerometerSeekBar = findViewById(R.id.seekBarChart);
+        accelerometerSeekBar.setMax(5);
 
         accelerometerSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
         {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b)
             {
+                if(i < 1) {i = 1; }
                 accelerometerCaptureRate = i;
                 accelerometerRateTextView.setText(String.format(Locale.getDefault(),"%d%s", accelerometerCaptureRate, " Seconds"));
             }
@@ -87,9 +96,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mSensorManager.registerListener(this, mAccelerometer, accelerometerCaptureRateInMicroSeconds);
         }
 
+        windowSizeTextView = findViewById(R.id.windowSizeTextView);
         seekBarFFT = findViewById(R.id.seekBarFFT);
-        seekBarFFT.setMax(16);
+        seekBarFFT.setMax(10);
         seekBarFFT.setProgress(initFFTBar);
+        windowSizeTextView.setText("Window Size: " + winSize);
 
         seekBarFFT.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -99,28 +110,32 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
-
             }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                if(initFFTBar <= 1)
+                if(initFFTBar < 1)
                 {
-                    initFFTBar = 2;
+                    initFFTBar = 1;
                 }
                 winSize = (int) Math.pow(2, initFFTBar);
-                Toast.makeText(getApplicationContext(), "Current window size: " + winSize, Toast.LENGTH_LONG).show();
-                fftValues = new double[winSize];// Assign array size
+                fftValues = new double[winSize];
+                windowSizeTextView.setText("Window Size: " + winSize);
+
             }
         });
 
-        Toast.makeText(getApplicationContext(), "initial window size: " + winSize, Toast.LENGTH_LONG).show();
-        fftValues = new double[winSize];// Assign array size
+        // Reference: http://www.android-graphview.org/
+        GraphView fftGraph = findViewById(R.id.fftGraph);
+        fftGraph.setTitle("Magnitude Frequency");
+        fftSeries.setColor(Color.YELLOW);
+        fftSeries.setDrawDataPoints(true);
+        fftSeries.setDataPointsRadius(1);
+        fftSeries.setThickness(3);
+        fftGraph.getViewport().setBackgroundColor(Color.LTGRAY);
+        fftGraph.addSeries(fftSeries);
 
-        // initiate and fill example array with random values
-        //rndAccExamplevalues = new double[64];
-        //randomFill(rndAccExamplevalues);
-        //new FFTAsynctask(64).execute(rndAccExamplevalues);
+        fftValues = new double[winSize];// Assign array size
     }
 
     @Override
@@ -195,7 +210,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         {
             new FFTAsynctask(winSize).execute(fftValues); // Run FFTAsynctask when the array has enough data
         }
-        else
+        else if (arrayNumber > winSize)
         {
             // Reset array to send new data according to the window size
             arrayNumber = 0;
@@ -258,6 +273,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorManager.unregisterListener(this);
     }
 
+    public void resetValues(View view) {
+        maxFreq = 0.0;
+        Toast.makeText(getApplicationContext(), "Max Value: " + maxFreq, Toast.LENGTH_SHORT).show();
+    }
+
+    public void showValues(View view) {
+        Toast.makeText(getApplicationContext(), "Max Value: " + maxFreq, Toast.LENGTH_SHORT).show();
+    }
+
     /**
      * Implements the fft functionality as an async task
      * FFT(int n): constructor with fft length
@@ -303,21 +327,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             //hand over values to global variable after background task is finished
             freqCounts = values;
 
-            LineChart fftChart = findViewById(R.id.fftChart); //fft Chart
-
+            DataPoint[] fftPlotValues = new DataPoint[winSize];
             for (int i = 0; i < winSize; i++) {
-                fftEntries.add(new Entry(entryNumber, ((float) freqCounts[i])));
-                LineDataSet dataFFT = new LineDataSet(fftEntries, "FFT-data");
-                dataFFT.setDrawCircles(false);
-                dataFFT.setColor(Color.YELLOW);
-                dataFFT.setValueTextColor(Color.YELLOW);
-                List<ILineDataSet> FFTDataSet = new ArrayList<>();
-                FFTDataSet.add(dataFFT);
-                LineData fftLineData = new LineData(FFTDataSet);
-                fftChart.setData(fftLineData);
-                fftChart.setBackgroundColor(Color.DKGRAY);
-                fftChart.invalidate();
+                fftPlotValues[i] = new DataPoint(i, freqCounts[i]);
             }
+            if (maxFreq <= fftSeries.getHighestValueY()){
+                maxFreq = fftSeries.getHighestValueY();
+            }
+            fftSeries.resetData(fftPlotValues);
         }
     }
 }
