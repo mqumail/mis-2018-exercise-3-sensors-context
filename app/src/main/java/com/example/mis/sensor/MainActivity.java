@@ -1,17 +1,34 @@
+/*
+    * mis-2018-exercise-3-sensors-context
+    * Mobile Information Systems
+    * Bauhaus-University Weimar
+    * Alvarez Zendejas Luis Alberto (119446)
+    * Muhammad Qumail (119432)
+ */
+
 package com.example.mis.sensor;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.media.MediaPlayer;
 import android.os.AsyncTask;
+import android.os.Build;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -29,7 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener
+public class MainActivity extends AppCompatActivity implements SensorEventListener, LocationListener
 {
     // Reference: https://developer.android.com/guide/topics/sensors/sensors_overview#sensors-identify
     private double[] freqCounts;
@@ -43,15 +60,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private TextView windowSizeTextView;
     private LineGraphSeries<DataPoint> fftSeries = new LineGraphSeries<>();
     private GraphView fftGraph;
+    private static final int finePermissionLocation = 101;
+    private Location lastPoint;
     int entryNumber = 0;
     int arrayNumber = 0;
     int initFFTBar = 5;
     double maxFreq;
+    double speedometer = 0;
+    String prevActivity = "none";
     List<Entry> xAxisEntries = new ArrayList<>();
     List<Entry> yAxisEntries = new ArrayList<>();
     List<Entry> zAxisEntries = new ArrayList<>();
     List<Entry> magnitudeEntries = new ArrayList<>();
     SeekBar seekBarFFT;
+    MediaPlayer player;
+    LocationManager locationManager;
+    Boolean gpsEnabled;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +86,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         accelerometerRateTextView = findViewById(R.id.AccelerometerRateTextView);
         SeekBar accelerometerSeekBar = findViewById(R.id.seekBarChart);
         accelerometerSeekBar.setMax(5);
+
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
 
         accelerometerSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
         {
@@ -88,6 +114,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, finePermissionLocation);
+            }
+        }
+        gpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        if( gpsEnabled ){
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+            Intent intent = new Intent("android.location.GPS_ENABLED_CHANGE");
+            intent.putExtra("enabled", true);
+        }
+
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (mAccelerometer != null)
@@ -100,6 +140,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         seekBarFFT = findViewById(R.id.seekBarFFT);
         seekBarFFT.setMax(10);
         seekBarFFT.setProgress(initFFTBar);
+        speedometer = getSpeedometer();
         windowSizeTextView.setText("Window Size: " + winSize);
 
         seekBarFFT.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -221,6 +262,47 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         entryNumber++;
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode){
+            case finePermissionLocation:
+                if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        Toast.makeText(this, "Location permissions granted", Toast.LENGTH_SHORT).show();
+                    }
+                } else{
+                    Toast.makeText(getApplicationContext(), "Location permissions are required", Toast.LENGTH_LONG).show();
+                    finish();
+                }
+                break;
+        }
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        // Reference: https://stackoverflow.com/questions/4811920/why-getspeed-always-return-0-on-android
+        double speed = 0;
+        if (lastPoint != null) {
+            double timeSpent = (location.getTime() - lastPoint.getTime()) / 1000;
+            speed = lastPoint.distanceTo(location) / timeSpent;
+        }
+        if (location.hasSpeed()) {
+            speedometer = location.getSpeed();
+        } else {
+            speedometer = speed;
+        }
+        lastPoint = location;
+        speedometer = location.getSpeed() * 3.6;
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) { }
+    @Override
+    public void onProviderEnabled(String provider) { }
+    @Override
+    public void onProviderDisabled(String provider) { }
+
     private void cleanupDataLists()
     {
         if (xAxisEntries.size() > 100)
@@ -273,13 +355,77 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorManager.unregisterListener(this);
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
     public void resetValues(View view) {
         maxFreq = 0.0;
+        stop();
         Toast.makeText(getApplicationContext(), "Max Value: " + maxFreq, Toast.LENGTH_SHORT).show();
     }
 
     public void showValues(View view) {
         Toast.makeText(getApplicationContext(), "Max Value: " + maxFreq, Toast.LENGTH_SHORT).show();
+    }
+
+    public void play(String activity){
+
+        if (!prevActivity.equals(activity)){
+            stop();
+        }
+
+        if (player == null){
+            switch (activity){
+                case "walk" :
+                    player = MediaPlayer.create(getApplicationContext(), R.raw.walk_song);
+                    break;
+
+                case "run" :
+                    player = MediaPlayer.create(getApplicationContext(), R.raw.run_song);
+                    break;
+
+                case "bike" :
+                    player = MediaPlayer.create(getApplicationContext(), R.raw.bike_song);
+                    break;
+            }
+
+            prevActivity = activity;
+
+            player.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                @Override
+                public void onCompletion(MediaPlayer mp) {
+                    stopPlayer();
+                }
+            });
+        }
+        player.start();
+    }
+    public void pause(){
+        if (player != null){
+            player.pause();
+        }
+    }
+
+    public void stop(){
+        stopPlayer();
+    }
+
+    public void stopPlayer(){
+        if (player != null){
+            player.release();
+            player = null;
+        }
+    }
+
+    private float getSpeedometer(){
+        @SuppressWarnings({"ResourceType"})
+        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        if (location != null && location.hasSpeed()) {
+            speedometer = (location.getSpeed() * 3.6);
+        }
+        return (float) speedometer;
     }
 
     /**
@@ -326,6 +472,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         protected void onPostExecute(double[] values) {
             //hand over values to global variable after background task is finished
             freqCounts = values;
+            String activity;
 
             DataPoint[] fftPlotValues = new DataPoint[winSize];
             for (int i = 0; i < winSize; i++) {
@@ -334,6 +481,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             if (maxFreq <= fftSeries.getHighestValueY()){
                 maxFreq = fftSeries.getHighestValueY();
             }
+
+            if (fftSeries.getHighestValueY() >= 360 && fftSeries.getHighestValueY() < 600 && speedometer > 1){
+                activity = "walk";
+                play(activity);
+            } else if (fftSeries.getHighestValueY() >= 600 && fftSeries.getHighestValueY() < 900 && speedometer > 5){
+                activity = "run";
+                play(activity);
+            } else if (fftSeries.getHighestValueY() >= 360 && speedometer > 7){
+                activity = "bike";
+                play(activity);
+            } else if (fftSeries.getHighestValueY() < 400){
+                pause();
+            }
+
             fftSeries.resetData(fftPlotValues);
         }
     }
